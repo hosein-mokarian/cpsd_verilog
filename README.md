@@ -1,7 +1,7 @@
 # Chaotic Phase Space Differential (CPSD) Implementation in Verilog
 
 
-The Chaotic Phase Space Differential (CPSD) algorithm has been developed to continuously detect critical cardiac conditions (i.e. VF, VT)based on the time-delayed phase space reconstruction method. Further, the CPSD algorithm can also distinguish other abnormal cardiovascular sign such as PVC according to the extracted feature from the ECG signal.
+The Chaotic Phase Space Differential (CPSD) algorithm has been developed to continuously detect critical cardiac conditions (i.e. VF, VT) based on the time-delayed phase space reconstruction method. Further, the CPSD algorithm can also distinguish other abnormal cardiovascular sign such as PVC according to the extracted feature from the ECG signal.
 
 In training mode, the algorithm finds a steady ECG window of length W seconds as the reference. And in testing mode, it compares the current signal with the reference to obtain the index of variation. The signal s(t) in the window
 
@@ -25,7 +25,7 @@ In training mode, the algorithm finds a steady ECG window of length W seconds as
 
  3. Construct the phase space matrix (PSM)
  
-	 A two-dimensional PSM, SM, can be constructed from the normalized ECG signal segment, v∗(n), with delay index, d. The number of visited-times on the SM with coordinate of (v∗(n), v∗(n + d)) is counted by Eq. 4 from 0 to N − d where N is the total number of samples in window W. 
+	 A two-dimensional PSM, SM, can be constructed from the normalized ECG signal segment, v∗(n), with delay index, d. The number of visited-times on the SM with coordinate of (v∗(n), v∗(n + d)) is counted by below equation from 0 to N − d where N is the total number of samples in window W. 
  
 		 SM[v∗(nx), v∗(nx + d)] = SM[v∗(nx), v∗(nx+d)]+1, for nx = 0 to N − d (4) where SM[ ] 
 
@@ -33,16 +33,17 @@ In training mode, the algorithm finds a steady ECG window of length W seconds as
 
  4. Compute the difference phase space matrix
 
-	Because the CPSD algorithm focuses on the spatial-temporal changes of PSM, we use the absolute values of the differential matrix, DPSM, between EPSM and RPSM to calculate the complexity value (CV) according to Eqs. 5 and 6. The complexity value (CV) of DPSM is defined as the number of all array elements that exceed zero.
+	Because the CPSD algorithm focuses on the spatial-temporal changes of PSM, we use the absolute values of the differential matrix, DPSM, between EPSM and RPSM to calculate the complexity value (CV) according to below Eqs. The complexity value (CV) of DPSM is defined as the number of all array elements that exceed zero.
 	
 		SDPSM[x, y] = |SEPSM[x, y] − SRPSM[x, y]|,
 			 for x, y = 0 to N
-		 CV = (CV + 1) if (SDPSM[x, y]! = 0) otherwise CV, 
+
+		CV = (CV + 1) if (SDPSM[x, y]! = 0) otherwise CV, 
 			 for x, y = 0 to N
 		
  5. Compute the CPSD value
 
-	The first CV of each ECG segment is adopted as a normalization factor in determining the subsequent CV to obtain the final CPSD values, as calculated by Eq. 7, which minimize the possible intra- and inter-patient variations. Self-normalization of each individual’s normal ECG patterns enables the establishment of a normal range of baseline CPSD values. 
+	The first CV of each ECG segment is adopted as a normalization factor in determining the subsequent CV to obtain the final CPSD values, as calculated by below Eq, which minimize the possible intra- and inter-patient variations. Self-normalization of each individual’s normal ECG patterns enables the establishment of a normal range of baseline CPSD values. 
 	
 		CPSDn = CVn / CV1 , 
 			where n ≥ 1
@@ -86,6 +87,20 @@ A reference DPSM value is selected according to Eq. 8 as CV1. Assuming here the 
 ### Overall Structure
 
 Fig.1 shows the whole system. The ECG signals is sampled by a SAR ADC and then use Pan-Tompkins algorithm to detect QRS complexes. It helps to make segments of the ECG signal. The shift register is used to align input signals with *qrs* signal. The *space vectors* block shift the signal based on *d* value to make a delay and create a vector with current value and delayed value. The *Quantized* block calculates a normalize value of space vector. The normalization formula needs a maxium value of input signal which is provided by PEAKF. PEAKF is the maxium value of bandpass filter of Pan-Tompkins algorithm. The quantized signal is always between 0 and L. These blocks are always running to make normalized space vector. This vector is used to calculate CPSD value.
+
+<br />
+<br />
+
+
+<figure>
+  <img src="https://github.com/hosein-mokarian/cpsd_verilog/blob/main/figs/cpsd.jpg" alt="pt_asic">
+  <figcaption>Fig. 1 Overall Structure</figcaption>
+</figure>
+
+
+<br />
+<br />
+
 As it is said it is needed to have a reference PSM (RPSM). It is better to obtine it as a real time task. So, threre is two phases: training and test. The control unit block is responsible to manage the whole process. It goes to *START* state after reseting. In this state a timer is triggered to count 8s. Then it goes to *TRAINING* state.
 The training phase is used to find a *RPSM*. The recieved quantized vector is counted based on its value and create Current PSM (CPSM) and calculates the difference of Previuos PSM and Current PSM. . At the end of the segment (*qrs = 1*), the CPSM is accepted as the RPSM if the *diff* is less than the *THRH*. This state takes 8 seconds. when the timer overflows, it goes to *TEST* state.
 In the *TEST* state, it cosistantly calculates the difference of Experienced PSM (EPSM) and Reference PSM (RPSM) called *DPSM*. The amount pf non-zero membrs of *DPSM* is the nth complexity value (*CVn*). The first calculated of *CVn* in this state is considered as *CV1*. The *CPSD* valu is *CVn*/*CV1*.
@@ -95,7 +110,20 @@ A two level thresholding tecnique is used to detect normal, AF or VF sattes of E
 
 The SAR ADC and Pan-Tompkins algorithm is not inplemented here. The *qrs* and *PEAKF* are generated by the testbench. All other blocks are implements in this verilog code. Fig.2 shows the digital impelemntation of calculating *CPSM*, *Previous CPSM*, *RPSM*, *EPSM* and *DPSM* as well as calculatinf *CV1*, *CVn* and *CPSD*.
 
-A more detailed looking at to Fig.1 shows the procduare of *LERNING* and *TEST* state are very similar. Both of the calculate a DPSM from two PSMs. The only difference is that how ther analyze the DFSM. So, a same datapath with an EN signal can be used. The memA is as Previous PSM in the *LEARNING* state and as RPSM in the *Test* state. Also the memB is considered as CPSM in *LEARNING* state and EPSM in *TEST* state. The *EN* signal determines which analyzing block works: *Finding RPSM* or *Non-Zero Members*.
+<br />
+<br />
+
+
+<figure>
+  <img src="https://github.com/hosein-mokarian/cpsd_verilog/blob/main/figs/cpsd_ram.jpg" alt="cpsd_ram">
+  <figcaption>Fig. 2</figcaption>
+</figure>
+
+
+<br />
+<br />
+
+A more detailed looking at to Fig.1 shows the procduare of *LERNING* and *TEST* state are very similar. Both of the calculate a DPSM from two PSMs. The only difference is that how they analyze the DFSM. So, a same datapath with an EN signal can be used. The memA is as Previous PSM in the *LEARNING* state and as RPSM in the *Test* state. Also the memB is considered as CPSM in *LEARNING* state and EPSM in *TEST* state. The *EN* signal determines which analyzing block works: *Finding RPSM* or *Non-Zero Members*.
 When a valid RPSM is found the shiftA of memA is asserted to shift the values of memB to memA. After that it memA is used as *RPSM*. All RAM blocks read data of input address (*A*) as a combinational circuit. The write transaction is done on rising edge of *clk*. The memB and DPSM are cleared when *qrs* is one. 
 
 Calculating the non-zero memebrs or number of members of *DPSM* which are greater than *THRH* are a little bit challenging. They have to be calculated at the end of each segment (*qrs = 1*), but it degrades down the performance. So. a real-time method is used. In each *clk*, the state of *DPSM* and *DPSM_Next* is checked to find what the next change of DSPM's memebers is. It helps to have a prepared value at the end of the each segment.
@@ -105,3 +133,16 @@ This Imelemtation takes advantages of being real-time and reused memory resource
 ### Chip Impelemtation
 
 The Openlane2 is used to make a GDS file of the design. It is a free and open-source tools supported by efabless. fig.3 shows the final layout in Klayout.
+
+<br />
+<br />
+
+
+<figure>
+  <img src="https://github.com/hosein-mokarian/cpsd_verilog/blob/main/figs/cpsd_asic.png" alt="cpsd_asic">
+  <figcaption>Fig. 3</figcaption>
+</figure>
+
+
+<br />
+<br />
