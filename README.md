@@ -132,7 +132,7 @@ This Imelemtation takes advantages of being real-time and reused memory resource
 
 ### Chip Impelemtation
 
-The Openlane2 is used to make a GDS file of the design. It is a free and open-source tools supported by efabless. fig.3 shows the final layout in Klayout.
+The Openlane2 is used to make a GDS file of the design. It is a free and open-source tools supported by efabless. Fig.3 shows the final layout in Klayout.
 
 <br />
 <br />
